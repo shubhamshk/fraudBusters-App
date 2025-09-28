@@ -24,8 +24,8 @@ const sendTokenCookie = (res, token) => {
   const cookieOptions = {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     httpOnly: true,
-    secure: isProduction, // Secure cookies in production
-    sameSite: isProduction ? 'none' : 'lax', // SameSite=None for cross-origin in production
+    secure: true, // Secure cookies in production
+    sameSite: None
   };
 
   res.cookie('token', token, cookieOptions);
