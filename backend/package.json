@@ -20,5 +20,9 @@
     "dev": "nodemon index.js",
     "migrate": "node scripts/migrate-roles.js",
     "test": "jest --testEnvironment=node --detectOpenHandles"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
   }
 }
