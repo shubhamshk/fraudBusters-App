@@ -14,12 +14,27 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS (dev: allow CRA; prod: use CLIENT_ORIGIN or same-origin)
+// CORS configuration for development and production
 const isProd = process.env.NODE_ENV === 'production';
+
+let corsOrigin;
+if (isProd) {
+  // In production, use CLIENT_ORIGIN if provided, otherwise allow specific origins
+  corsOrigin = process.env.CLIENT_ORIGIN || [
+    /\.onrender\.com$/,
+    'https://fraudbusters-frontend.onrender.com'
+  ];
+} else {
+  // In development, allow all origins
+  corsOrigin = true;
+}
+
 app.use(
   cors({
-    origin: isProd ? (process.env.CLIENT_ORIGIN || false) : true,
+    origin: corsOrigin,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
