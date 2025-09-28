@@ -1,153 +1,72 @@
 const express = require('express');
 const User = require('../models/User');
-const { signToken, sendTokenCookie, protect } = require('../middleware/auth');
+const { signToken, sendTokenCookie, protect } = require('../middlewares/auth');
 
 const router = express.Router();
 
-// @route   POST /api/auth/register
-// @desc    Register new user
-// @access  Public
+// Register
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role, profile } = req.body;
 
-    // Validation
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide name, email, password, and role',
-      });
-    }
+    if (!name || !email || !password || !role)
+      return res.status(400).json({ success: false, message: 'All fields required' });
 
-    // Validate role
     const validRoles = ['STUDENT', 'EMPLOYER', 'INSTITUTION', 'GOV_ADMIN'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid role selected',
-      });
-    }
+    if (!validRoles.includes(role))
+      return res.status(400).json({ success: false, message: 'Invalid role' });
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters',
-      });
-    }
+    if (password.length < 6)
+      return res.status(400).json({ success: false, message: 'Password min 6 chars' });
 
-    // Check if user exists
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email',
-      });
-    }
+    if (existingUser)
+      return res.status(400).json({ success: false, message: 'Email already exists' });
 
-    // Create user
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role,
-      profile: profile || {},
-    });
+    const user = await User.create({ name, email, password, role, profile: profile || {} });
 
-    // Generate token and send cookie
     const token = signToken(user._id);
     sendTokenCookie(res, token);
 
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      user,
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during registration',
-    });
+    user.password = undefined;
+    res.status(201).json({ success: true, message: 'User registered', user });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ success: false, message: 'Server error during registration' });
   }
 });
 
-// @route   POST /api/auth/login
-// @desc    Login user
-// @access  Public
+// Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ success: false, message: 'Email and password required' });
 
-    // Validation
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password',
-      });
-    }
-
-    // Check user exists and get password
     const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
-      });
-    }
+    if (!user || !(await user.comparePassword(password)))
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
-      });
-    }
-
-    // Generate token and send cookie
     const token = signToken(user._id);
     sendTokenCookie(res, token);
 
-    // Remove password from response
     user.password = undefined;
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      user,
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login',
-    });
+    res.json({ success: true, message: 'Login successful', user });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ success: false, message: 'Server error during login' });
   }
 });
 
-// @route   GET /api/auth/me
-// @desc    Get current user
-// @access  Private
+// Get current user
 router.get('/me', protect, (req, res) => {
-  res.json({
-    success: true,
-    user: req.user,
-  });
+  res.json({ success: true, user: req.user });
 });
 
-// @route   POST /api/auth/logout
-// @desc    Logout user
-// @access  Private
+// Logout
 router.post('/logout', protect, (req, res) => {
-  res.cookie('token', '', {
-    expires: new Date(0),
-    httpOnly: true,
-  });
-
-  res.json({
-    success: true,
-    message: 'Logged out successfully',
-  });
+  res.cookie('token', '', { expires: new Date(0), httpOnly: true });
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 module.exports = router;
